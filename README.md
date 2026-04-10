@@ -1,5 +1,5 @@
 👤 Author
-Your Name
+Krunal Sawarkar
 
 Email: [krunalsawarkar2004@gmail.com]
 # Quick Market
