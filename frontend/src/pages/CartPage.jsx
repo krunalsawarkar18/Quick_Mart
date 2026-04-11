@@ -1,11 +1,22 @@
 import { Minus, Plus, Trash2 } from "lucide-react";
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
+import { apiRequest } from "../api/client.js";
 import { useCart } from "../context/CartContext.jsx";
 import { formatCurrency, formatProductQuantity } from "../utils/format.js";
+import { calculateDeliveryFee, DEFAULT_DELIVERY_SETTINGS } from "../utils/delivery.js";
 
 const CartPage = () => {
   const { items, subtotal, updateQuantity, removeFromCart } = useCart();
-  const deliveryFee = items.length ? (subtotal > 799 ? 0 : 40) : 0;
+  const [deliverySettings, setDeliverySettings] = useState(DEFAULT_DELIVERY_SETTINGS);
+
+  useEffect(() => {
+    apiRequest("/settings/delivery")
+      .then(setDeliverySettings)
+      .catch(() => setDeliverySettings(DEFAULT_DELIVERY_SETTINGS));
+  }, []);
+
+  const deliveryFee = calculateDeliveryFee(subtotal, items.length, deliverySettings);
 
   return (
     <section className="grid gap-8 lg:grid-cols-[1fr_360px]">
@@ -79,7 +90,9 @@ const CartPage = () => {
             <span>{formatCurrency(subtotal + deliveryFee)}</span>
           </div>
         </div>
-        <p className="mt-4 text-sm leading-6 text-slate-500">Free delivery unlocks automatically on orders above Rs. 799.</p>
+        <p className="mt-4 text-sm leading-6 text-slate-500">
+          Free delivery unlocks automatically on orders above {formatCurrency(deliverySettings.freeDeliveryThreshold)}.
+        </p>
         <Link
           to="/checkout"
           className={`mt-6 flex w-full justify-center rounded-full px-5 py-3 text-sm font-semibold transition ${

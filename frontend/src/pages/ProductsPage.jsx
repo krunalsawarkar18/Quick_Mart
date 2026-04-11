@@ -64,9 +64,9 @@ const ProductsPage = () => {
         </div>
         <div className="mt-6 grid gap-3 sm:gap-4 lg:grid-cols-[1fr_220px]">
           <div className="relative">
-            <Search className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+            <Search className="pointer-events-none absolute left-5 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
             <input
-              className="input-field pl-14"
+              className="input-field pl-16"
               placeholder="Search products"
               value={search}
               onChange={(event) => {

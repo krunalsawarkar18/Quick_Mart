@@ -7,6 +7,7 @@ import Product from "../models/Product.js";
 import User from "../models/User.js";
 import { adminOnly, protect } from "../middleware/authMiddleware.js";
 import asyncHandler from "../utils/asyncHandler.js";
+import { getDeliverySettings, getOrCreateDeliverySettings } from "../utils/deliverySettings.js";
 import { canCancelOrder, restoreOrderStock, visibleOrderFilter } from "../utils/orderHelpers.js";
 import slugify from "../utils/slugify.js";
 
@@ -15,7 +16,7 @@ const router = express.Router();
 router.use(protect, adminOnly);
 
 router.get("/dashboard", asyncHandler(async (req, res) => {
-  const [products, categories, orders, customers, featuredProducts, lowStockProducts, pendingOrders, recentOrders] = await Promise.all([
+  const [products, categories, orders, customers, featuredProducts, lowStockProducts, pendingOrders, recentOrders, deliverySettings] = await Promise.all([
     Product.countDocuments(),
     Category.countDocuments(),
     Order.countDocuments(visibleOrderFilter),
@@ -27,7 +28,8 @@ router.get("/dashboard", asyncHandler(async (req, res) => {
       .populate("user", "name email phone")
       .sort({ createdAt: -1 })
       .limit(5)
-      .lean()
+      .lean(),
+    getDeliverySettings()
   ]);
 
   const revenue = await Order.aggregate([
@@ -44,7 +46,37 @@ router.get("/dashboard", asyncHandler(async (req, res) => {
     featuredProducts,
     lowStockProducts,
     pendingOrders,
-    recentOrders
+    recentOrders,
+    deliverySettings
+  });
+}));
+
+router.get("/delivery-settings", asyncHandler(async (_req, res) => {
+  res.json(await getDeliverySettings());
+}));
+
+router.patch("/delivery-settings", asyncHandler(async (req, res) => {
+  const settings = await getOrCreateDeliverySettings();
+  const nextCharge = Number(req.body.charge);
+  const nextThreshold = Number(req.body.freeDeliveryThreshold);
+
+  if (!Number.isFinite(nextCharge) || nextCharge < 0) {
+    return res.status(400).json({ message: "Delivery charge must be a valid non-negative number" });
+  }
+
+  if (!Number.isFinite(nextThreshold) || nextThreshold < 0) {
+    return res.status(400).json({ message: "Free delivery threshold must be a valid non-negative number" });
+  }
+
+  settings.charge = nextCharge;
+  settings.freeDeliveryThreshold = nextThreshold;
+  settings.updatedBy = req.user._id;
+  await settings.save();
+
+  res.json({
+    charge: settings.charge,
+    freeDeliveryThreshold: settings.freeDeliveryThreshold,
+    updatedAt: settings.updatedAt
   });
 }));
 

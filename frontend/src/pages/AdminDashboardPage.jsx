@@ -1,21 +1,89 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { apiRequest } from "../api/client.js";
 import { useAuth } from "../context/AuthContext.jsx";
-import { formatCurrency, formatDate } from "../utils/format.js";
+import { formatCurrency, formatDateTime } from "../utils/format.js";
 import { getOrderStatusMeta } from "../utils/orderStatus.js";
+
+const emptyDeliveryForm = {
+  charge: "40",
+  freeDeliveryThreshold: "799"
+};
 
 const AdminDashboardPage = () => {
   const { token } = useAuth();
   const [stats, setStats] = useState(null);
+  const [deliveryForm, setDeliveryForm] = useState(emptyDeliveryForm);
+  const [savingDelivery, setSavingDelivery] = useState(false);
+  const [deliveryMessage, setDeliveryMessage] = useState("");
+
+  const loadDashboard = useCallback(async (syncForm = false) => {
+    const data = await apiRequest("/admin/dashboard", {}, token);
+    setStats(data);
+
+    if (syncForm) {
+      setDeliveryForm({
+        charge: String(data.deliverySettings?.charge ?? 40),
+        freeDeliveryThreshold: String(data.deliverySettings?.freeDeliveryThreshold ?? 799)
+      });
+    }
+  }, [token]);
 
   useEffect(() => {
-    apiRequest("/admin/dashboard", {}, token).then(setStats).catch(console.error);
-  }, []);
+    loadDashboard(true).catch(console.error);
+
+    const intervalId = window.setInterval(() => {
+      loadDashboard(false).catch(console.error);
+    }, 5000);
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        loadDashboard(false).catch(console.error);
+      }
+    };
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
+    return () => {
+      window.clearInterval(intervalId);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
+  }, [loadDashboard]);
 
   if (!stats) {
     return <div className="text-center text-slate-600">Loading dashboard...</div>;
   }
+
+  const saveDeliverySettings = async (event) => {
+    event.preventDefault();
+    setSavingDelivery(true);
+    setDeliveryMessage("");
+
+    try {
+      const nextSettings = await apiRequest(
+        "/admin/delivery-settings",
+        {
+          method: "PATCH",
+          body: JSON.stringify({
+            charge: Number(deliveryForm.charge),
+            freeDeliveryThreshold: Number(deliveryForm.freeDeliveryThreshold)
+          })
+        },
+        token
+      );
+
+      setStats((current) => ({ ...current, deliverySettings: nextSettings }));
+      setDeliveryForm({
+        charge: String(nextSettings.charge),
+        freeDeliveryThreshold: String(nextSettings.freeDeliveryThreshold)
+      });
+      setDeliveryMessage("Delivery settings updated successfully.");
+    } catch (error) {
+      setDeliveryMessage(error.message);
+    } finally {
+      setSavingDelivery(false);
+    }
+  };
 
   const cards = [
     { label: "Products", value: stats.products },
@@ -36,7 +104,7 @@ const AdminDashboardPage = () => {
         ))}
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-2">
+      <div className="grid gap-4 xl:grid-cols-[1fr_1fr_1.05fr]">
         <Link to="/admin/products" className="soft-card p-6 transition hover:-translate-y-0.5 hover:border-brand-orange">
           <div className="pill">Inventory</div>
           <h2 className="mt-4 text-2xl font-extrabold tracking-tight text-slate-900">Manage products</h2>
@@ -51,6 +119,47 @@ const AdminDashboardPage = () => {
             Create more categories for products, edit category details, or remove unused categories.
           </p>
         </Link>
+        <div className="soft-card p-6">
+          <div className="pill">Admin only</div>
+          <h2 className="mt-4 text-2xl font-extrabold tracking-tight text-slate-900">Delivery settings</h2>
+          <p className="mt-2 text-sm leading-6 text-slate-600">
+            Manage the delivery charge and free-delivery threshold used across customer cart and checkout totals.
+          </p>
+          <form className="mt-5 grid gap-4" onSubmit={saveDeliverySettings}>
+            <label className="grid gap-2">
+              <span className="text-sm font-semibold text-slate-700">Delivery charge</span>
+              <input
+                className="input-field"
+                type="number"
+                min="0"
+                value={deliveryForm.charge}
+                onChange={(event) => setDeliveryForm((current) => ({ ...current, charge: event.target.value }))}
+              />
+            </label>
+            <label className="grid gap-2">
+              <span className="text-sm font-semibold text-slate-700">Free delivery above</span>
+              <input
+                className="input-field"
+                type="number"
+                min="0"
+                value={deliveryForm.freeDeliveryThreshold}
+                onChange={(event) =>
+                  setDeliveryForm((current) => ({ ...current, freeDeliveryThreshold: event.target.value }))
+                }
+              />
+            </label>
+            <div className="rounded-2xl bg-slate-100 px-4 py-3 text-sm text-slate-600">
+              Current rule: charge {formatCurrency(Number(deliveryForm.charge || 0))}, free above{" "}
+              {formatCurrency(Number(deliveryForm.freeDeliveryThreshold || 0))}
+            </div>
+            {deliveryMessage ? (
+              <div className="rounded-2xl bg-blue-50 px-4 py-3 text-sm text-blue-800">{deliveryMessage}</div>
+            ) : null}
+            <button className="button-primary w-full" type="submit" disabled={savingDelivery}>
+              {savingDelivery ? "Saving..." : "Save delivery settings"}
+            </button>
+          </form>
+        </div>
       </div>
 
       <div className="soft-card p-6">
@@ -78,7 +187,7 @@ const AdminDashboardPage = () => {
                     <div>
                       <div className="text-lg font-extrabold text-slate-900">{order.orderNumber}</div>
                       <div className="mt-1 text-sm text-slate-500">
-                        {order.user?.name || order.address?.fullName || "Customer"} · {order.user?.email || "No email"} · {formatDate(order.createdAt)}
+                        {`${order.user?.name || order.address?.fullName || "Customer"} · ${order.user?.email || "No email"} · ${formatDateTime(order.createdAt)}`}
                       </div>
                     </div>
                     <div className="flex flex-wrap items-center gap-3">

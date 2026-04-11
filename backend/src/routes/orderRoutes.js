@@ -12,16 +12,27 @@ import {
   restoreOrderStock,
   visibleOrderFilter
 } from "../utils/orderHelpers.js";
+import { calculateDeliveryFee, getDeliverySettings } from "../utils/deliverySettings.js";
 
 const router = express.Router();
 const stripe = process.env.STRIPE_SECRET_KEY ? new Stripe(process.env.STRIPE_SECRET_KEY) : null;
 
+const ensureCustomerAccess = (req, res, next) => {
+  if (req.user?.role === "admin") {
+    return res.status(403).json({ message: "Admin accounts should manage customer orders from the admin workspace" });
+  }
+
+  next();
+};
+
 router.use(protect);
+router.use(ensureCustomerAccess);
 
 const getPopulatedCart = (userId) =>
   Cart.findOne({ user: userId }).populate("items.product", "name slug price discountPrice stock imageUrl");
 
 const getCheckoutContext = async (userId, addressId) => {
+  const deliverySettings = await getDeliverySettings();
   const cart = await getPopulatedCart(userId);
 
   if (!cart || cart.items.length === 0) {
@@ -55,7 +66,7 @@ const getCheckoutContext = async (userId, addressId) => {
   }));
 
   const itemsPrice = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
-  const deliveryFee = itemsPrice > 799 ? 0 : 40;
+  const deliveryFee = calculateDeliveryFee(itemsPrice, deliverySettings);
   const totalPrice = itemsPrice + deliveryFee;
 
   return { cart, address, items, itemsPrice, deliveryFee, totalPrice };

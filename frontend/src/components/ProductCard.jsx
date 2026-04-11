@@ -1,11 +1,19 @@
 import { ShoppingBasket, Star } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { useCart } from "../context/CartContext.jsx";
+import { useAuth } from "../context/AuthContext.jsx";
 import { formatCurrency, getDiscount, getProductPrice } from "../utils/format.js";
 
 const ProductCard = ({ product }) => {
+  const navigate = useNavigate();
+  const { user } = useAuth();
   const { addToCart } = useCart();
   const discount = getDiscount(product.price, product.discountPrice);
+  const isAdmin = user?.role === "admin";
+  const buyNow = async () => {
+    await addToCart(product, 1);
+    navigate("/checkout");
+  };
 
   return (
     <article className="group gradient-border soft-card">
@@ -42,7 +50,7 @@ const ProductCard = ({ product }) => {
             {product.description}
           </p>
         </div>
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+        <div className="flex flex-col gap-3">
           <div>
             <div className="text-lg font-extrabold text-brand-green sm:text-xl">{formatCurrency(getProductPrice(product))}</div>
             {product.discountPrice ? (
@@ -52,9 +60,20 @@ const ProductCard = ({ product }) => {
               </div>
             ) : null}
           </div>
-          <button className="button-primary w-full gap-2 px-3 py-2 text-xs sm:w-auto sm:px-4 sm:py-2.5 sm:text-sm" onClick={() => addToCart(product, 1)}>
-            <ShoppingBasket size={14} className="sm:h-4 sm:w-4" /> Add
-          </button>
+          {isAdmin ? (
+            <Link to="/admin/orders" className="button-muted w-full justify-center text-xs sm:text-sm">
+              View customer orders
+            </Link>
+          ) : (
+            <div className="grid grid-cols-2 gap-2">
+              <button className="button-primary w-full gap-2 px-3 py-2 text-xs sm:px-4 sm:py-2.5 sm:text-sm" onClick={() => addToCart(product, 1)}>
+                <ShoppingBasket size={14} className="sm:h-4 sm:w-4" /> Add
+              </button>
+              <button className="button-secondary w-full px-3 py-2 text-xs sm:px-4 sm:py-2.5 sm:text-sm" onClick={buyNow}>
+                Buy now
+              </button>
+            </div>
+          )}
         </div>
       </div>
     </article>

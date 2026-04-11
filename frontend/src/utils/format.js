@@ -13,6 +13,14 @@ export const getDiscount = (price, discountPrice) => {
   return Math.round(((price - discountPrice) / price) * 100);
 };
 
+export const getSavingsAmount = (price, discountPrice) => {
+  if (!discountPrice || discountPrice >= price) {
+    return 0;
+  }
+
+  return price - discountPrice;
+};
+
 export const getProductPrice = (product) => product.discountPrice || product.price;
 
 export const formatDate = (dateValue) =>
@@ -20,6 +28,15 @@ export const formatDate = (dateValue) =>
     day: "2-digit",
     month: "short",
     year: "numeric"
+  });
+
+export const formatDateTime = (dateValue) =>
+  new Date(dateValue).toLocaleString("en-IN", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit"
   });
 
 const PRODUCE_CATEGORIES = new Set(["fresh fruits", "vegetables"]);

@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { apiRequest } from "../api/client.js";
 import { useAuth } from "../context/AuthContext.jsx";
-import { formatCurrency, formatDate } from "../utils/format.js";
+import { formatCurrency, formatDateTime } from "../utils/format.js";
 import { ORDER_STATUS_STEPS, getOrderStatusIndex, getOrderStatusMeta } from "../utils/orderStatus.js";
 
 const OrdersPage = () => {
@@ -17,7 +17,7 @@ const OrdersPage = () => {
   useEffect(() => {
     loadOrders();
 
-    const intervalId = window.setInterval(loadOrders, 10000);
+    const intervalId = window.setInterval(loadOrders, 5000);
     const handleVisibilityChange = () => {
       if (document.visibilityState === "visible") {
         loadOrders();
@@ -52,7 +52,7 @@ const OrdersPage = () => {
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                   <div>
                     <div className="text-lg font-extrabold text-slate-900">{order.orderNumber}</div>
-                    <div className="text-sm text-slate-500">{formatDate(order.createdAt)}</div>
+                    <div className="text-sm text-slate-500">{formatDateTime(order.createdAt)}</div>
                   </div>
                   <div className="flex flex-wrap items-center gap-3">
                     <span className={`rounded-full px-3 py-1 text-sm font-semibold ${statusMeta.badgeClass}`}>{order.status}</span>

@@ -18,7 +18,8 @@ const mobileNavClass = ({ isActive }) =>
 const AppShell = () => {
   const { itemCount } = useCart();
   const { user, logout } = useAuth();
-  const showCartNav = user?.role !== "admin";
+  const isAdmin = user?.role === "admin";
+  const showCartNav = !isAdmin;
 
   return (
     <div className="relative min-h-screen overflow-hidden">
@@ -69,10 +70,10 @@ const AppShell = () => {
                 ) : null}
                 {user ? (
                   <>
-                    <NavLink to="/account/orders" className={navClass}>
+                    <NavLink to={isAdmin ? "/admin/orders" : "/account/orders"} className={navClass}>
                       Orders
                     </NavLink>
-                    {user.role === "admin" ? (
+                    {isAdmin ? (
                       <NavLink to="/admin" className={navClass}>
                         Admin
                       </NavLink>
@@ -162,7 +163,7 @@ const AppShell = () => {
             </NavLink>
           ) : null}
           {user ? (
-            user.role === "admin" ? (
+            isAdmin ? (
               <NavLink to="/admin" className={mobileNavClass}>
                 <LayoutDashboard size={18} />
                 <span>Admin</span>

@@ -1,7 +1,7 @@
 import { Navigate, useLocation } from "react-router-dom";
 import { useAuth } from "../context/AuthContext.jsx";
 
-const ProtectedRoute = ({ children, requireAdmin = false }) => {
+const ProtectedRoute = ({ children, requireAdmin = false, disallowAdmin = false, adminRedirectTo = "/admin" }) => {
   const { loading, isAuthenticated, user } = useAuth();
   const location = useLocation();
 
@@ -15,6 +15,10 @@ const ProtectedRoute = ({ children, requireAdmin = false }) => {
 
   if (requireAdmin && user?.role !== "admin") {
     return <Navigate to="/admin-access" replace />;
+  }
+
+  if (disallowAdmin && user?.role === "admin") {
+    return <Navigate to={adminRedirectTo} replace state={{ from: location.pathname }} />;
   }
 
   return children;

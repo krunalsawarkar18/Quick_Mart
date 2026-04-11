@@ -1,13 +1,16 @@
 import { Minus, Plus, ShieldCheck, Truck } from "lucide-react";
 import { useEffect, useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import { apiRequest } from "../api/client.js";
 import ProductCard from "../components/ProductCard.jsx";
+import { useAuth } from "../context/AuthContext.jsx";
 import { useCart } from "../context/CartContext.jsx";
-import { formatCurrency, formatProductQuantity, getProductPrice } from "../utils/format.js";
+import { formatCurrency, formatProductQuantity, getProductPrice, getSavingsAmount } from "../utils/format.js";
 
 const ProductDetailsPage = () => {
   const { slug } = useParams();
+  const navigate = useNavigate();
+  const { user } = useAuth();
   const { addToCart } = useCart();
   const [product, setProduct] = useState(null);
   const [quantity, setQuantity] = useState(1);
@@ -39,6 +42,13 @@ const ProductDetailsPage = () => {
     return <div className="text-center text-slate-600">Loading product...</div>;
   }
 
+  const savingsAmount = getSavingsAmount(product.price, product.discountPrice);
+  const isAdmin = user?.role === "admin";
+  const buyNow = async () => {
+    await addToCart(product, quantity);
+    navigate("/checkout");
+  };
+
   return (
     <section className="space-y-10">
       <div className="grid gap-8 lg:grid-cols-[0.82fr_1fr] lg:items-start">
@@ -63,7 +73,12 @@ const ProductDetailsPage = () => {
             <div className="mt-6 flex flex-wrap items-end gap-3">
               <div className="text-3xl font-black text-brand-green">{formatCurrency(getProductPrice(product))}</div>
               {product.discountPrice ? (
-                <div className="text-lg text-slate-400 line-through">{formatCurrency(product.price)}</div>
+                <>
+                  <div className="text-lg text-slate-400 line-through">{formatCurrency(product.price)}</div>
+                  <span className="rounded-full bg-rose-50 px-3 py-1 text-xs font-bold uppercase tracking-[0.18em] text-brand-orange">
+                    Save {formatCurrency(savingsAmount)} today
+                  </span>
+                </>
               ) : null}
             </div>
             <div className="mt-6 grid gap-3 sm:flex sm:flex-wrap sm:items-center">
@@ -82,12 +97,23 @@ const ProductDetailsPage = () => {
                   <Plus size={16} />
                 </button>
               </div>
-              <button className="button-primary w-full sm:w-auto" onClick={() => addToCart(product, quantity)}>
-                Add to cart
-              </button>
-              <Link to="/cart" className="button-muted w-full sm:w-auto">
-                View cart
-              </Link>
+              {isAdmin ? (
+                <Link to="/admin/orders" className="button-muted w-full justify-center sm:w-auto">
+                  View customer orders
+                </Link>
+              ) : (
+                <>
+                  <button className="button-primary w-full sm:w-auto" onClick={() => addToCart(product, quantity)}>
+                    Add to cart
+                  </button>
+                  <button className="button-secondary w-full sm:w-auto" onClick={buyNow}>
+                    Buy now
+                  </button>
+                  <Link to="/cart" className="button-muted w-full sm:w-auto">
+                    View cart
+                  </Link>
+                </>
+              )}
             </div>
           </div>
           <div className="grid gap-4 sm:grid-cols-2">

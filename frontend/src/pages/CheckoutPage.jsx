@@ -5,6 +5,7 @@ import AddressForm from "../components/AddressForm.jsx";
 import { useAuth } from "../context/AuthContext.jsx";
 import { useCart } from "../context/CartContext.jsx";
 import { formatCurrency } from "../utils/format.js";
+import { calculateDeliveryFee, DEFAULT_DELIVERY_SETTINGS } from "../utils/delivery.js";
 
 const CheckoutPage = () => {
   const { token } = useAuth();
@@ -19,6 +20,7 @@ const CheckoutPage = () => {
   const [message, setMessage] = useState("");
   const [addressNotice, setAddressNotice] = useState("");
   const [paymentMethod, setPaymentMethod] = useState("Cash on Delivery");
+  const [deliverySettings, setDeliverySettings] = useState(DEFAULT_DELIVERY_SETTINGS);
   const handledSessionRef = useRef("");
 
   const loadAddresses = async () => {
@@ -30,6 +32,12 @@ const CheckoutPage = () => {
 
   useEffect(() => {
     loadAddresses().catch(console.error);
+  }, []);
+
+  useEffect(() => {
+    apiRequest("/settings/delivery")
+      .then(setDeliverySettings)
+      .catch(() => setDeliverySettings(DEFAULT_DELIVERY_SETTINGS));
   }, []);
 
   useEffect(() => {
@@ -183,7 +191,7 @@ const CheckoutPage = () => {
     }
   };
 
-  const deliveryFee = subtotal > 799 ? 0 : 40;
+  const deliveryFee = calculateDeliveryFee(subtotal, items.length, deliverySettings);
 
   return (
     <section className="grid gap-6 sm:gap-8 lg:grid-cols-[1fr_360px]">
@@ -297,6 +305,9 @@ const CheckoutPage = () => {
             <span>{formatCurrency(subtotal + deliveryFee)}</span>
           </div>
         </div>
+        <p className="mt-4 text-sm leading-6 text-slate-500">
+          Free delivery unlocks automatically on orders above {formatCurrency(deliverySettings.freeDeliveryThreshold)}.
+        </p>
         <button
           className="button-primary mt-6 w-full"
           onClick={placeOrder}

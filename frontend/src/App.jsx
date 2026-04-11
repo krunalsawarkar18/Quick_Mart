@@ -27,14 +27,21 @@ const App = () => (
       <Route index element={<HomePage />} />
       <Route path="products" element={<ProductsPage />} />
       <Route path="products/:slug" element={<ProductDetailsPage />} />
-      <Route path="cart" element={<CartPage />} />
+      <Route
+        path="cart"
+        element={
+          <ProtectedRoute disallowAdmin adminRedirectTo="/admin">
+            <CartPage />
+          </ProtectedRoute>
+        }
+      />
       <Route path="admin-access" element={<AdminAccessPage />} />
       <Route path="admin/login" element={<AdminLoginPage />} />
       <Route path="admin/register" element={<AdminRegisterPage />} />
       <Route
         path="checkout"
         element={
-          <ProtectedRoute>
+          <ProtectedRoute disallowAdmin adminRedirectTo="/admin">
             <CheckoutPage />
           </ProtectedRoute>
         }
@@ -44,7 +51,7 @@ const App = () => (
       <Route
         path="account/profile"
         element={
-          <ProtectedRoute>
+          <ProtectedRoute disallowAdmin adminRedirectTo="/admin">
             <ProfilePage />
           </ProtectedRoute>
         }
@@ -52,7 +59,7 @@ const App = () => (
       <Route
         path="account/addresses"
         element={
-          <ProtectedRoute>
+          <ProtectedRoute disallowAdmin adminRedirectTo="/admin">
             <AddressesPage />
           </ProtectedRoute>
         }
@@ -60,7 +67,7 @@ const App = () => (
       <Route
         path="account/orders"
         element={
-          <ProtectedRoute>
+          <ProtectedRoute disallowAdmin adminRedirectTo="/admin/orders">
             <OrdersPage />
           </ProtectedRoute>
         }

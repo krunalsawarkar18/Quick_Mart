@@ -15,7 +15,7 @@ const AdminShell = () => (
         <div>
           <h1 className="section-title">Admin dashboard</h1>
           <p className="mt-2 max-w-2xl leading-6 text-slate-600">
-            Manage products, categories, and orders from one backend-powered workspace.
+            Manage products, categories, delivery settings, and customer activity from one backend-powered workspace.
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -27,9 +27,6 @@ const AdminShell = () => (
           </NavLink>
           <NavLink to="/admin/categories" className={tabClass}>
             Categories
-          </NavLink>
-          <NavLink to="/admin/orders" className={tabClass}>
-            Orders
           </NavLink>
         </div>
       </div>

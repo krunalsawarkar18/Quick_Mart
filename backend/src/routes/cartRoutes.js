@@ -6,6 +6,14 @@ import asyncHandler from "../utils/asyncHandler.js";
 
 const router = express.Router();
 
+const ensureCustomerAccess = (req, res, next) => {
+  if (req.user?.role === "admin") {
+    return res.status(403).json({ message: "Admin accounts cannot use customer cart features" });
+  }
+
+  next();
+};
+
 const getPopulatedCart = async (userId) =>
   Cart.findOne({ user: userId }).populate({
     path: "items.product",
@@ -17,6 +25,7 @@ const getPopulatedCart = async (userId) =>
   });
 
 router.use(protect);
+router.use(ensureCustomerAccess);
 
 router.get("/", asyncHandler(async (req, res) => {
   let cart = await getPopulatedCart(req.user._id);

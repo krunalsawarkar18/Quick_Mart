@@ -5,7 +5,16 @@ import asyncHandler from "../utils/asyncHandler.js";
 
 const router = express.Router();
 
+const ensureCustomerAccess = (req, res, next) => {
+  if (req.user?.role === "admin") {
+    return res.status(403).json({ message: "Admin accounts cannot use customer address features" });
+  }
+
+  next();
+};
+
 router.use(protect);
+router.use(ensureCustomerAccess);
 
 router.get("/", asyncHandler(async (req, res) => {
   const addresses = await Address.find({ user: req.user._id }).sort({ isDefault: -1, createdAt: -1 });
