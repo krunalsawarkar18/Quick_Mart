@@ -2,7 +2,7 @@
 
 Krunal Sawarkar
 
-Email: [krunalsawarkar2004@gmail.com]
+Email: [krunalsawarkar2004gmail.com]
 # Quick Market
 
 Quick Market is a full-stack grocery ecommerce platform built to demonstrate production-minded MERN engineering, polished frontend execution, and admin-focused business workflows in a single portfolio project.
