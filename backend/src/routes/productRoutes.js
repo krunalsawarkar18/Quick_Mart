@@ -3,6 +3,7 @@ import Product from "../models/Product.js";
 import asyncHandler from "../utils/asyncHandler.js";
 
 const router = express.Router();
+const escapeRegex = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
 router.get("/", asyncHandler(async (req, res) => {
   const { category, featured, q } = req.query;
@@ -17,10 +18,11 @@ router.get("/", asyncHandler(async (req, res) => {
   }
 
   if (q) {
+    const safeQuery = escapeRegex(q);
     filter.$or = [
-      { name: { $regex: q, $options: "i" } },
-      { description: { $regex: q, $options: "i" } },
-      { tags: { $in: [new RegExp(q, "i")] } }
+      { name: { $regex: safeQuery, $options: "i" } },
+      { description: { $regex: safeQuery, $options: "i" } },
+      { tags: { $in: [new RegExp(safeQuery, "i")] } }
     ];
   }
 

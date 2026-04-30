@@ -17,10 +17,14 @@ dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 5000;
+const allowedOrigins = (process.env.CLIENT_URL || "")
+  .split(",")
+  .map((origin) => origin.trim())
+  .filter(Boolean);
 
 app.use(
   cors({
-    origin: process.env.CLIENT_URL?.split(",") || "*"
+    origin: allowedOrigins.length ? allowedOrigins : true
   })
 );
 app.use(express.json());

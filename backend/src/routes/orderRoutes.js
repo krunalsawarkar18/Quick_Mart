@@ -1,5 +1,4 @@
 import express from "express";
-import Stripe from "stripe";
 import Product from "../models/Product.js";
 import Address from "../models/Address.js";
 import Cart from "../models/Cart.js";
@@ -13,9 +12,10 @@ import {
   visibleOrderFilter
 } from "../utils/orderHelpers.js";
 import { calculateDeliveryFee, getDeliverySettings } from "../utils/deliverySettings.js";
+import { getStripeClient, getStripePaymentIntentId, refundStripePayment } from "../utils/paymentHelpers.js";
 
 const router = express.Router();
-const stripe = process.env.STRIPE_SECRET_KEY ? new Stripe(process.env.STRIPE_SECRET_KEY) : null;
+const stripe = getStripeClient();
 
 const ensureCustomerAccess = (req, res, next) => {
   if (req.user?.role === "admin") {
@@ -85,7 +85,7 @@ const createOrderPayload = ({ userId, items, address, paymentMethod, itemsPrice,
     country: address.country
   },
   paymentMethod,
-  paymentStatus: paymentMethod === "Stripe" ? "Pending" : "Paid",
+  paymentStatus: "Pending",
   itemsPrice,
   deliveryFee,
   totalPrice,
@@ -262,16 +262,27 @@ router.post("/stripe/confirm-session", asyncHandler(async (req, res) => {
   const insufficientItem = order.items.find((item) => (productMap[item.product.toString()]?.stock || 0) < item.quantity);
 
   if (insufficientItem) {
-    order.paymentStatus = "Failed";
+    const paymentIntentId = getStripePaymentIntentId(session);
+
+    if (paymentIntentId) {
+      await refundStripePayment(stripe, paymentIntentId);
+      order.paymentStatus = "Refunded";
+      order.stripePaymentIntentId = paymentIntentId;
+    } else {
+      order.paymentStatus = "Failed";
+    }
+
+    order.status = "Cancelled";
     await order.save();
-    return res.status(400).json({ message: `${insufficientItem.name} is no longer available in the required quantity` });
+    return res.status(409).json({
+      message: `${insufficientItem.name} is no longer available in the required quantity. Your Stripe payment was reversed.`
+    });
   }
 
   await reduceOrderStock(order);
 
   order.paymentStatus = "Paid";
-  order.stripePaymentIntentId =
-    typeof session.payment_intent === "string" ? session.payment_intent : session.payment_intent?.id || "";
+  order.stripePaymentIntentId = getStripePaymentIntentId(session);
   await order.save();
 
   const cart = await Cart.findOne({ user: req.user._id });
@@ -303,6 +314,11 @@ router.patch("/:id/cancel", asyncHandler(async (req, res) => {
 
   if (!canCancelOrder(order.status)) {
     return res.status(400).json({ message: "This order can no longer be cancelled" });
+  }
+
+  if (order.paymentMethod === "Stripe") {
+    await refundStripePayment(stripe, order.stripePaymentIntentId, "requested_by_customer");
+    order.paymentStatus = "Refunded";
   }
 
   await restoreOrderStock(order);

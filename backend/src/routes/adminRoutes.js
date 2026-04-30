@@ -9,9 +9,11 @@ import { adminOnly, protect } from "../middleware/authMiddleware.js";
 import asyncHandler from "../utils/asyncHandler.js";
 import { getDeliverySettings, getOrCreateDeliverySettings } from "../utils/deliverySettings.js";
 import { canCancelOrder, restoreOrderStock, visibleOrderFilter } from "../utils/orderHelpers.js";
+import { getStripeClient, refundStripePayment } from "../utils/paymentHelpers.js";
 import slugify from "../utils/slugify.js";
 
 const router = express.Router();
+const stripe = getStripeClient();
 
 router.use(protect, adminOnly);
 
@@ -33,7 +35,7 @@ router.get("/dashboard", asyncHandler(async (req, res) => {
   ]);
 
   const revenue = await Order.aggregate([
-    { $match: { paymentStatus: "Paid" } },
+    { $match: { paymentStatus: "Paid", status: { $ne: "Cancelled" } } },
     { $group: { _id: null, total: { $sum: "$totalPrice" } } }
   ]);
 
@@ -183,7 +185,17 @@ router.get("/customers", asyncHandler(async (req, res) => {
         $group: {
           _id: "$user",
           ordersCount: { $sum: 1 },
-          totalSpent: { $sum: "$totalPrice" },
+          totalSpent: {
+            $sum: {
+              $cond: [
+                {
+                  $and: [{ $eq: ["$paymentStatus", "Paid"] }, { $ne: ["$status", "Cancelled"] }]
+                },
+                "$totalPrice",
+                0
+              ]
+            }
+          },
           latestOrderAt: { $max: "$createdAt" }
         }
       }
@@ -231,10 +243,20 @@ router.patch("/orders/:id", asyncHandler(async (req, res) => {
       return res.status(400).json({ message: "This order can no longer be cancelled" });
     }
 
+    if (order.paymentMethod === "Stripe") {
+      await refundStripePayment(stripe, order.stripePaymentIntentId, "requested_by_customer");
+      order.paymentStatus = "Refunded";
+    }
+
     await restoreOrderStock(order);
   }
 
   order.status = nextStatus;
+
+  if (order.paymentMethod === "Cash on Delivery" && nextStatus === "Delivered") {
+    order.paymentStatus = "Paid";
+  }
+
   await order.save();
   res.json(order);
 }));

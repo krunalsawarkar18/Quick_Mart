@@ -1,4 +1,5 @@
-const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
+const configuredApiUrl = import.meta.env.VITE_API_URL?.trim();
+const API_URL = configuredApiUrl || (import.meta.env.DEV ? "http://localhost:5000/api" : "");
 
 const buildHeaders = (token, extraHeaders = {}) => {
   const headers = {
@@ -14,6 +15,10 @@ const buildHeaders = (token, extraHeaders = {}) => {
 };
 
 export const apiRequest = async (path, options = {}, token) => {
+  if (!API_URL) {
+    throw new Error("API is not configured. Set VITE_API_URL in the frontend environment.");
+  }
+
   const response = await fetch(`${API_URL}${path}`, {
     ...options,
     headers: buildHeaders(token, options.headers)
@@ -29,4 +34,3 @@ export const apiRequest = async (path, options = {}, token) => {
 };
 
 export default API_URL;
-

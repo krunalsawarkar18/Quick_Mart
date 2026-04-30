@@ -5,10 +5,14 @@ import { useAuth } from "../context/AuthContext.jsx";
 import { formatCurrency, formatDateTime } from "../utils/format.js";
 import { ORDER_STATUS_STEPS, getOrderStatusIndex, getOrderStatusMeta } from "../utils/orderStatus.js";
 
+const cancellableStatuses = new Set(["Pending", "Confirmed", "Packed"]);
+
 const OrdersPage = () => {
   const { token } = useAuth();
   const location = useLocation();
   const [orders, setOrders] = useState([]);
+  const [feedbackMessage, setFeedbackMessage] = useState(location.state?.successMessage || "");
+  const [cancellingOrderId, setCancellingOrderId] = useState("");
 
   const loadOrders = useCallback(() => {
     apiRequest("/orders", {}, token).then(setOrders).catch(console.error);
@@ -32,14 +36,38 @@ const OrdersPage = () => {
     };
   }, [loadOrders]);
 
+  const cancelOrder = async (orderId) => {
+    setCancellingOrderId(orderId);
+    setFeedbackMessage("");
+
+    try {
+      const data = await apiRequest(
+        `/orders/${orderId}/cancel`,
+        {
+          method: "PATCH"
+        },
+        token
+      );
+
+      setOrders((currentOrders) =>
+        currentOrders.map((order) => (order._id === orderId ? data.order : order))
+      );
+      setFeedbackMessage(data.message);
+    } catch (error) {
+      setFeedbackMessage(error.message);
+    } finally {
+      setCancellingOrderId("");
+    }
+  };
+
   return (
     <section className="space-y-6">
       <div>
         <span className="pill">Orders</span>
         <h1 className="section-title mt-3">Track your Quick Market purchases</h1>
       </div>
-      {location.state?.successMessage ? (
-        <div className="rounded-2xl bg-blue-100 px-4 py-3 text-sm text-blue-800">{location.state.successMessage}</div>
+      {feedbackMessage ? (
+        <div className="rounded-2xl bg-blue-100 px-4 py-3 text-sm text-blue-800">{feedbackMessage}</div>
       ) : null}
       <div className="grid gap-4">
         {orders.length ? (
@@ -57,6 +85,15 @@ const OrdersPage = () => {
                   <div className="flex flex-wrap items-center gap-3">
                     <span className={`rounded-full px-3 py-1 text-sm font-semibold ${statusMeta.badgeClass}`}>{order.status}</span>
                     <span className="text-lg font-black text-brand-green">{formatCurrency(order.totalPrice)}</span>
+                    {cancellableStatuses.has(order.status) ? (
+                      <button
+                        className="button-muted"
+                        onClick={() => cancelOrder(order._id)}
+                        disabled={cancellingOrderId === order._id}
+                      >
+                        {cancellingOrderId === order._id ? "Cancelling..." : "Cancel order"}
+                      </button>
+                    ) : null}
                   </div>
                 </div>
                 <div className="mt-4 rounded-3xl border border-slate-200 bg-white/80 p-4">
