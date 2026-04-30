@@ -1,5 +1,5 @@
 const configuredApiUrl = import.meta.env.VITE_API_URL?.trim();
-const API_URL = configuredApiUrl || (import.meta.env.DEV ? "http://localhost:5000/api" : "");
+const API_URL = configuredApiUrl || (import.meta.env.DEV ? "https://quick-mart-d8h8.onrender.com/api" : "");
 
 const buildHeaders = (token, extraHeaders = {}) => {
   const headers = {
