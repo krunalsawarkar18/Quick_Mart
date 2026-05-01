@@ -5,7 +5,8 @@ import AddressForm from "../components/AddressForm.jsx";
 import { useAuth } from "../context/AuthContext.jsx";
 import { useCart } from "../context/CartContext.jsx";
 import { formatCurrency } from "../utils/format.js";
-import { calculateDeliveryFee, DEFAULT_DELIVERY_SETTINGS } from "../utils/delivery.js";
+import { calculateDeliveryFee } from "../utils/delivery.js";
+import { loadDeliverySettings, readCachedDeliverySettings } from "../utils/deliverySettingsCache.js";
 
 const CheckoutPage = () => {
   const { token } = useAuth();
@@ -20,7 +21,7 @@ const CheckoutPage = () => {
   const [message, setMessage] = useState("");
   const [addressNotice, setAddressNotice] = useState("");
   const [paymentMethod, setPaymentMethod] = useState("Cash on Delivery");
-  const [deliverySettings, setDeliverySettings] = useState(DEFAULT_DELIVERY_SETTINGS);
+  const [deliverySettings, setDeliverySettings] = useState(() => readCachedDeliverySettings());
   const handledSessionRef = useRef("");
 
   const loadAddresses = async () => {
@@ -35,9 +36,9 @@ const CheckoutPage = () => {
   }, []);
 
   useEffect(() => {
-    apiRequest("/settings/delivery")
+    loadDeliverySettings()
       .then(setDeliverySettings)
-      .catch(() => setDeliverySettings(DEFAULT_DELIVERY_SETTINGS));
+      .catch(() => setDeliverySettings(readCachedDeliverySettings()));
   }, []);
 
   useEffect(() => {

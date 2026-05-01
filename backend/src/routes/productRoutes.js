@@ -26,7 +26,12 @@ router.get("/", asyncHandler(async (req, res) => {
     ];
   }
 
-  const products = await Product.find(filter).populate("category", "name slug").sort({ createdAt: -1 });
+  res.set("Cache-Control", q ? "public, max-age=30, stale-while-revalidate=120" : "public, max-age=60, stale-while-revalidate=300");
+
+  const products = await Product.find(filter)
+    .populate("category", "name slug")
+    .sort({ createdAt: -1 })
+    .lean();
   res.json(products);
 }));
 
@@ -38,9 +43,13 @@ router.get("/:slug", asyncHandler(async (req, res) => {
     filter.push({ _id: slug });
   }
 
+  res.set("Cache-Control", "public, max-age=60, stale-while-revalidate=300");
+
   const product = await Product.findOne({
     $or: filter
-  }).populate("category", "name slug");
+  })
+    .populate("category", "name slug")
+    .lean();
 
   if (!product) {
     return res.status(404).json({ message: "Product not found" });

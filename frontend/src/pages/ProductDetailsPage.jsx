@@ -6,23 +6,47 @@ import ProductCard from "../components/ProductCard.jsx";
 import { useAuth } from "../context/AuthContext.jsx";
 import { useCart } from "../context/CartContext.jsx";
 import { formatCurrency, formatProductQuantity, getProductPrice, getSavingsAmount } from "../utils/format.js";
+import { readCachedValue, writeCachedValue } from "../utils/storageCache.js";
+
+const PRODUCT_CACHE_TTL_MS = 5 * 60 * 1000;
+const SIMILAR_PRODUCTS_CACHE_TTL_MS = 5 * 60 * 1000;
 
 const ProductDetailsPage = () => {
   const { slug } = useParams();
   const navigate = useNavigate();
   const { user } = useAuth();
   const { addToCart } = useCart();
-  const [product, setProduct] = useState(null);
+  const [product, setProduct] = useState(() => readCachedValue(`quick-market-product-${slug}`, PRODUCT_CACHE_TTL_MS));
   const [quantity, setQuantity] = useState(1);
   const [similarProducts, setSimilarProducts] = useState([]);
+  const [productLoading, setProductLoading] = useState(() => !readCachedValue(`quick-market-product-${slug}`, PRODUCT_CACHE_TTL_MS));
 
   useEffect(() => {
+    let isActive = true;
+
+    setProductLoading(!product);
     apiRequest(`/products/${slug}`)
       .then((data) => {
+        if (!isActive) {
+          return;
+        }
+
         setProduct(data);
         setQuantity(1);
+        setProductLoading(false);
+        writeCachedValue(`quick-market-product-${slug}`, data);
       })
-      .catch(console.error);
+      .catch((error) => {
+        if (isActive) {
+          setProductLoading(false);
+        }
+
+        console.error(error);
+      });
+
+    return () => {
+      isActive = false;
+    };
   }, [slug]);
 
   useEffect(() => {
@@ -31,15 +55,36 @@ const ProductDetailsPage = () => {
       return;
     }
 
+    const cacheKey = `quick-market-similar-${product.category._id}`;
+    const cachedSimilarProducts = readCachedValue(cacheKey, SIMILAR_PRODUCTS_CACHE_TTL_MS);
+
+    if (cachedSimilarProducts?.length) {
+      setSimilarProducts(cachedSimilarProducts.filter((item) => item._id !== product._id).slice(0, 4));
+    }
+
+    let isActive = true;
     apiRequest(`/products?category=${product.category._id}`)
       .then((products) => {
+        if (!isActive) {
+          return;
+        }
+
+        writeCachedValue(cacheKey, products);
         setSimilarProducts(products.filter((item) => item._id !== product._id).slice(0, 4));
       })
       .catch(console.error);
+
+    return () => {
+      isActive = false;
+    };
   }, [product]);
 
-  if (!product) {
+  if (!product && productLoading) {
     return <div className="text-center text-slate-600">Loading product...</div>;
+  }
+
+  if (!product) {
+    return <div className="text-center text-slate-600">Product not found.</div>;
   }
 
   const savingsAmount = getSavingsAmount(product.price, product.discountPrice);
@@ -56,6 +101,8 @@ const ProductDetailsPage = () => {
           <img
             src={product.imageUrl}
             alt={product.name}
+            fetchPriority="high"
+            decoding="async"
             className="h-full max-h-[280px] w-full object-cover sm:max-h-[360px] lg:max-h-[430px]"
           />
         </div>

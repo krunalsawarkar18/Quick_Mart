@@ -1,19 +1,19 @@
 import { Minus, Plus, Trash2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { apiRequest } from "../api/client.js";
 import { useCart } from "../context/CartContext.jsx";
 import { formatCurrency, formatProductQuantity } from "../utils/format.js";
-import { calculateDeliveryFee, DEFAULT_DELIVERY_SETTINGS } from "../utils/delivery.js";
+import { calculateDeliveryFee } from "../utils/delivery.js";
+import { loadDeliverySettings, readCachedDeliverySettings } from "../utils/deliverySettingsCache.js";
 
 const CartPage = () => {
   const { items, subtotal, updateQuantity, removeFromCart } = useCart();
-  const [deliverySettings, setDeliverySettings] = useState(DEFAULT_DELIVERY_SETTINGS);
+  const [deliverySettings, setDeliverySettings] = useState(() => readCachedDeliverySettings());
 
   useEffect(() => {
-    apiRequest("/settings/delivery")
+    loadDeliverySettings()
       .then(setDeliverySettings)
-      .catch(() => setDeliverySettings(DEFAULT_DELIVERY_SETTINGS));
+      .catch(() => setDeliverySettings(readCachedDeliverySettings()));
   }, []);
 
   const deliveryFee = calculateDeliveryFee(subtotal, items.length, deliverySettings);
@@ -31,7 +31,13 @@ const CartPage = () => {
         {items.length ? (
           items.map((item) => (
             <article key={item.productId} className="soft-card flex flex-col gap-4 p-4 sm:flex-row sm:items-center sm:p-5">
-              <img src={item.imageUrl} alt={item.name} className="h-28 w-full rounded-[22px] object-cover sm:w-32" />
+              <img
+                src={item.imageUrl}
+                alt={item.name}
+                loading="lazy"
+                decoding="async"
+                className="h-28 w-full rounded-[22px] object-cover sm:w-32"
+              />
               <div className="min-w-0 flex-1">
                 <Link to={`/products/${item.slug}`} className="text-lg font-extrabold tracking-tight text-slate-900">
                   {item.name}

@@ -3,20 +3,65 @@ import { Link } from "react-router-dom";
 import { useEffect, useState } from "react";
 import ProductCard from "../components/ProductCard.jsx";
 import { apiRequest } from "../api/client.js";
+import { readCachedValue, writeCachedValue } from "../utils/storageCache.js";
+
+const CATEGORY_CACHE_KEY = "quick-market-categories";
+const FEATURED_CACHE_KEY = "quick-market-featured-products";
+const CATEGORY_CACHE_TTL_MS = 10 * 60 * 1000;
+const FEATURED_CACHE_TTL_MS = 5 * 60 * 1000;
 
 const HomePage = () => {
-  const [featuredProducts, setFeaturedProducts] = useState([]);
-  const [categories, setCategories] = useState([]);
+  const [cachedCategories] = useState(() => readCachedValue(CATEGORY_CACHE_KEY, CATEGORY_CACHE_TTL_MS));
+  const [cachedFeaturedProducts] = useState(() => readCachedValue(FEATURED_CACHE_KEY, FEATURED_CACHE_TTL_MS));
+  const [featuredProducts, setFeaturedProducts] = useState(() => cachedFeaturedProducts || []);
+  const [categories, setCategories] = useState(() => cachedCategories || []);
   const [search, setSearch] = useState("");
 
   useEffect(() => {
-    Promise.all([apiRequest("/products?featured=true"), apiRequest("/categories")])
-      .then(([products, categoryList]) => {
+    let isActive = true;
+
+    if (cachedFeaturedProducts?.length) {
+      setFeaturedProducts(cachedFeaturedProducts);
+    }
+
+    apiRequest("/products?featured=true")
+      .then((products) => {
+        if (!isActive) {
+          return;
+        }
+
         setFeaturedProducts(products);
-        setCategories(categoryList);
+        writeCachedValue(FEATURED_CACHE_KEY, products);
       })
       .catch((error) => console.error(error));
-  }, []);
+
+    return () => {
+      isActive = false;
+    };
+  }, [cachedFeaturedProducts]);
+
+  useEffect(() => {
+    let isActive = true;
+
+    if (cachedCategories?.length) {
+      setCategories(cachedCategories);
+    }
+
+    apiRequest("/categories")
+      .then((categoryList) => {
+        if (!isActive) {
+          return;
+        }
+
+        setCategories(categoryList);
+        writeCachedValue(CATEGORY_CACHE_KEY, categoryList);
+      })
+      .catch((error) => console.error(error));
+
+    return () => {
+      isActive = false;
+    };
+  }, [cachedCategories]);
 
   return (
     <div className="space-y-12">

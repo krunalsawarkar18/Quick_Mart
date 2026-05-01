@@ -21,6 +21,8 @@ const ProductCard = ({ product }) => {
         <img
           src={product.imageUrl}
           alt={product.name}
+          loading="lazy"
+          decoding="async"
           className="h-40 w-full object-cover transition duration-700 group-hover:scale-110 sm:h-60"
         />
         <div className="absolute inset-0 bg-gradient-to-t from-slate-950/25 via-transparent to-transparent opacity-70 transition group-hover:opacity-100" />

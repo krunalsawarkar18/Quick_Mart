@@ -5,7 +5,9 @@ import asyncHandler from "../utils/asyncHandler.js";
 const router = express.Router();
 
 router.get("/", asyncHandler(async (req, res) => {
-  const categories = await Category.find({}).sort({ name: 1 });
+  res.set("Cache-Control", "public, max-age=300, stale-while-revalidate=1800");
+
+  const categories = await Category.find({}).sort({ name: 1 }).lean();
   res.json(categories);
 }));
 
